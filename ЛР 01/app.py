@@ -3,6 +3,7 @@ from tkinter import *
 from tkinter import messagebox
 import math
 from tkinter.ttk import Treeview
+from turtle import circle
 
 x_axis_center = 0
 y_axis_center = 0
@@ -29,8 +30,11 @@ class App():
         self.dots_dict = dict([])
         self.circle_id = -1
 
+        self.last_action = []
+        self.root.bind_all("<Control-z>", self.redo)
+
         self.x_axis = self.canv.create_line(0, 0, 0, 0, fill='gray', arrow=LAST)
-        self.y_axis = self.canv.create_line(0, 0, 0, 0, fill='gray', arrow=LAST)
+        self.y_axis = self.canv.create_line(0, 0, 0, 0, fill='gray', arrow=FIRST)
 
         self.canv.bind("<Configure>", self.configure)
         self.canv.bind('<Button-1>', self.create_dot)
@@ -102,7 +106,7 @@ class App():
         self.ent_circle_r.bind('<Button-1>', self.entry_mode_circle_r)
 
         # DOT REMOVE
-        self.lab_dot_remove = Label(self.frame, font='"monotxt_iv50" 10', bg='#9c79d1', fg='#47385e', justify=CENTER, text='--------------------------УДАЛЕНИЕ-ТОЧКИ--------------------------')
+        self.lab_dot_remove = Label(self.frame, font='"monotxt_iv50" 10', bg='#9c79d1', fg='#47385e', justify=CENTER, text='-----------------------------УДАЛЕНИЕ-----------------------------')
         self.lab_dot_remove.place(rely=0.65, relwidth=1)
 
         self.ent_dot_id = Entry(self.frame, font='"monotxt_iv50" 12', bg='#b890f5', fg='#7b5ea6', justify=CENTER)
@@ -114,14 +118,12 @@ class App():
 
         self.ent_dot_id.bind('<Button-1>', self.entry_mode_dot_id)
 
+        # CIRCLE REMOVE
+        self.btn_circle_remove = Button(self.frame, text='Удалить окружность', font='"monotxt_iv50" 9', command=self.remove_circle, bg='#ab85e6', activebackground='#b890f5', fg='#2b213b')
+        self.btn_circle_remove.place(relwidth=0.9, relx=0.05, rely=0.73, relheight=0.04)
+
         # UNFOCUS
         self.frame.bind_all('<Button-1>', self.unfocus)
-
-        # # MOVE CANVAS
-        # self.x_scan_mark = 0
-        # self.y_scan_mark = 0
-        # self.canv.bind("<Button-3>", self.move_start)
-        # self.canv.bind("<Button3-Motion>", self.move_move)
 
         # ZOOM CANVAS
         self.canv.bind("<MouseWheel>",self.zoomer)
@@ -161,7 +163,8 @@ class App():
     def create_dot(self, event):
         dot_id = self.canv.create_oval([event.x - 3, event.y - 3], [event.x + 3, event.y + 3], fill='#b890f5', tags='draggable')
         self.dots_dict[dot_id] = (event.x, event.y)
-        self.dots_table.insert('', END, values=(dot_id, (event.x - x_axis_center) / k_scale, (event.y - y_axis_center) / k_scale))
+        self.dots_table.insert('', END, values=(dot_id, (event.x - x_axis_center) / k_scale, -(event.y - y_axis_center) / k_scale))
+        self.last_action = ['CreateDot', dot_id]
     
     def create_dot_btn(self):
         x = self.ent_x.get()
@@ -180,8 +183,8 @@ class App():
             return
         x = float(x)
         y = float(y)
-        dot_id = self.canv.create_oval([x * k_scale + x_axis_center - 3, y * k_scale + y_axis_center - 3], [x * k_scale + x_axis_center + 3, y * k_scale + y_axis_center + 3], fill='#b890f5', tags='draggable')
-        self.dots_dict[dot_id] = (x, y)
+        dot_id = self.canv.create_oval([x * k_scale + x_axis_center - 3, (-y) * k_scale + y_axis_center - 3], [x * k_scale + x_axis_center + 3, (-y) * k_scale + y_axis_center + 3], fill='#b890f5', tags='draggable')
+        self.dots_dict[dot_id] = (x * k_scale + x_axis_center, (-y) * k_scale + y_axis_center)
         self.dots_table.insert('', END, values=(dot_id, x, y))
         self.ent_x.delete(0, END)
         self.ent_y.delete(0, END)
@@ -189,8 +192,11 @@ class App():
         self.ent_y.insert(0, 'Y')
         self.ent_x['fg'] = '#7b5ea6'
         self.ent_y['fg'] = '#7b5ea6'
+        self.last_action = ['CreateDot', dot_id]
     
     def create_circle_btn(self):
+        if self.circle_id != -1:
+            self.canv.delete(self.circle_id)
         x = self.ent_circle_x.get()
         y = self.ent_circle_y.get()
         r = self.ent_circle_r.get()
@@ -213,7 +219,7 @@ class App():
         x = float(x)
         y = float(y)
         r = float(r)
-        self.circle_id = self.canv.create_oval([(x - r) * k_scale + x_axis_center, (y - r) * k_scale + x_axis_center], [(x + r) * k_scale  + x_axis_center, (y+ r) * k_scale + x_axis_center])
+        self.circle_id = self.canv.create_oval([(x - r) * k_scale + x_axis_center, (-y - r) * k_scale + y_axis_center], [(x + r) * k_scale  + x_axis_center, (-y + r) * k_scale + y_axis_center])
         self.canv.tag_lower(self.circle_id)
         self.canv.tag_lower(self.x_axis)
         self.canv.tag_lower(self.y_axis)
@@ -226,6 +232,7 @@ class App():
         self.ent_circle_x['fg'] = '#7b5ea6'
         self.ent_circle_y['fg'] = '#7b5ea6'
         self.ent_circle_r['fg'] = '#7b5ea6'
+        self.last_action = ['CreateCircle', self.circle_id]
     
     def remove_dot(self):
         id = self.ent_dot_id.get()
@@ -244,15 +251,24 @@ class App():
                 self.ent_dot_id.delete(0, END)
                 self.ent_dot_id.insert(0, 'ID')
                 self.ent_dot_id['fg'] = '#7b5ea6'
+                self.last_action = ['RemoveDot', self.dots_dict[id]]
                 self.dots_dict.pop(id)
                 for item in self.dots_table.get_children():
                     if id == self.dots_table.item(item)['values'][0]:
+                        self.last_action = ['RemoveDot', self.dots_table.item(item)['values'][1], self.dots_table.item(item)['values'][2]]
                         self.dots_table.delete(item)
                 return
         messagebox.showerror(title='Ошибка!', message='Неверно введен ID точки!\nПожалуйста введите ID нужной точки из таблицы сверху')
         self.ent_dot_id.delete(0, END)
         self.ent_dot_id.insert(0, 'ID')
         self.ent_dot_id['fg'] = '#7b5ea6'
+    
+    def remove_circle(self):
+        if self.circle_id != -1:
+            x0, y0, x1, y1 = self.canv.coords(self.circle_id)
+            self.last_action = ['RemoveCircle', [(x0 - x_axis_center / k_scale), -(y0 - y_axis_center) / k_scale, (x1 - x_axis_center) / k_scale, -(y1 - y_axis_center) / k_scale]]
+            self.canv.delete(self.circle_id)
+            self.circle_id = -1
 
     def unfocus(self, event):
         if event.widget != self.ent_x:
@@ -314,21 +330,6 @@ class App():
             self.selected_dot.clear()
         if self.circle_id != -1:
             self.canv.move(self.circle_id, x_axis_center - prev_x_axis_center, y_axis_center - prev_y_axis_center)
-    
-    # def move_start(self, event):
-    #     x, y = event.x, event.y
-    #     self.canv.scan_mark(x, y)
-    #     self.x_scan_mark = x
-    #     self.y_scan_mark = y
-    # def move_move(self, event):
-    #     global x_axis_center, y_axis_center
-    #     x, y = event.x, event.y
-    #     self.canv.scan_dragto(x, y, gain=1)
-    #     x_axis_center += self.x_scan_mark - x
-    #     y_axis_center += self.y_scan_mark - y
-    #     self.x_scan_mark = x
-    #     self.x_scan_mark = y
-    #     print(x_axis_center, y_axis_center)
 
     def zoomer(self, event):
         global k_scale, x_axis_center, y_axis_center
@@ -340,6 +341,7 @@ class App():
                 y1 = y0 + (y1 - y0) / 2
                 self.canv.coords(id, x0, y0, x1, y1)
             k_scale *= 2
+            self.last_action = ['Zoom', 0.5]
         elif (event.delta < 0):
             self.canv.scale(ALL, x_axis_center, y_axis_center, 0.5, 0.5)
             for id in self.dots_dict:
@@ -348,6 +350,7 @@ class App():
                 y1 = y0 + (y1 - y0) * 2
                 self.canv.coords(id, x0, y0, x1, y1)
             k_scale *= 0.5
+            self.last_action = ['Zoom', 2]
         if len(self.dots_table.selection()) > 0:
             self.dots_table.selection_remove(self.dots_table.selection()[0])
             self.canv.delete(self.selected_dot[0])
@@ -355,7 +358,6 @@ class App():
             self.selected_dot.clear()
         
         w, h = self.canv.winfo_width(), self.canv.winfo_height()
-        # self.canv.config(width=w, height=h)
         x_axis_center = w / 2
         y_axis_center = h / 2
         self.canv.coords(self.x_axis, 0, h / 2, w, h / 2)
@@ -364,21 +366,72 @@ class App():
         self.canv.tag_lower(self.y_axis)
 
         self.lab_scale['text'] = 'x' + str(k_scale)
-        
-        # print(k_scale)
     
     def select_dot(self, event):
         if self.selected_dot != []:
             self.canv.delete(self.selected_dot[0])
             self.canv.delete(self.selected_dot[1])
             self.selected_dot.clear()
-        print(self.dots_table.item(self.dots_table.focus())['values'])
         x = float(self.dots_table.item(self.dots_table.focus())['values'][1]) * k_scale + x_axis_center
-        y = float(self.dots_table.item(self.dots_table.focus())['values'][2]) * k_scale + y_axis_center
+        y = -float(self.dots_table.item(self.dots_table.focus())['values'][2]) * k_scale + y_axis_center
         self.selected_dot.append(self.canv.create_line(x, 0, x, self.canv.winfo_height(), fill='gray', dash=(4, 2)))
         self.selected_dot.append(self.canv.create_line(0, y, self.canv.winfo_width(), y, fill='gray', dash=(4, 2)))
         self.canv.tag_lower(self.selected_dot[0])
         self.canv.tag_lower(self.selected_dot[1])
+    
+    def redo(self, event):
+        global k_scale, x_axis_center, y_axis_center
+        if self.last_action != []:
+            action = self.last_action[0]
+            if action == 'CreateDot':
+                id = self.last_action[1]
+                self.canv.delete(id)
+                self.dots_dict.pop(id)
+                for item in self.dots_table.get_children():
+                    if id == self.dots_table.item(item)['values'][0]:
+                        self.dots_table.delete(item)
+            elif action == 'CreateCircle':
+                id = self.last_action[1]
+                self.canv.delete(id)
+                self.circle_id = -1
+            elif action == 'RemoveDot':
+                x, y = float(self.last_action[1]), float(self.last_action[2])
+                dot_id = self.canv.create_oval([x * k_scale + x_axis_center - 3, (-y) * k_scale + y_axis_center - 3], [x * k_scale + x_axis_center + 3, (-y) * k_scale + y_axis_center + 3], fill='#b890f5', tags='draggable')
+                self.dots_dict[dot_id] = (x * k_scale + x_axis_center, (-y) * k_scale + y_axis_center)
+                self.dots_table.insert('', END, values=(dot_id, x, y))
+            elif action == 'RemoveCircle':
+                x0, y0, x1, y1 = self.last_action[1]
+                self.circle_id = self.canv.create_oval([x0 * k_scale + x_axis_center, -y0 * k_scale + y_axis_center], [x1 * k_scale  + x_axis_center, -y1 * k_scale + y_axis_center])
+            elif action == 'Zoom':
+                if self.last_action[1] == 2:
+                    self.canv.scale(ALL, x_axis_center, y_axis_center, 2, 2)
+                    for id in self.dots_dict:
+                        x0, y0, x1, y1 = self.canv.coords(id)
+                        x1 = x0 + (x1 - x0) / 2
+                        y1 = y0 + (y1 - y0) / 2
+                        self.canv.coords(id, x0, y0, x1, y1)
+                    k_scale *= 2
+                elif self.last_action[1] == 0.5:
+                    self.canv.scale(ALL, x_axis_center, y_axis_center, 0.5, 0.5)
+                    for id in self.dots_dict:
+                        x0, y0, x1, y1 = self.canv.coords(id)
+                        x1 = x0 + (x1 - x0) * 2
+                        y1 = y0 + (y1 - y0) * 2
+                        self.canv.coords(id, x0, y0, x1, y1)
+                    k_scale *= 0.5
+                w, h = self.canv.winfo_width(), self.canv.winfo_height()
+                x_axis_center = w / 2
+                y_axis_center = h / 2
+                self.canv.coords(self.x_axis, 0, h / 2, w, h / 2)
+                self.canv.coords(self.y_axis, w / 2, 0, w / 2, h)
+                self.canv.tag_lower(self.x_axis)
+                self.canv.tag_lower(self.y_axis)
+            self.last_action = []
+        if len(self.dots_table.selection()) > 0:
+            self.dots_table.selection_remove(self.dots_table.selection()[0])
+            self.canv.delete(self.selected_dot[0])
+            self.canv.delete(self.selected_dot[1])
+            self.selected_dot.clear()
 
 if __name__ == '__main__':
     win = App()

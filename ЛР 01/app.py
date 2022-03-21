@@ -1,9 +1,7 @@
-from select import select
 from tkinter import *
 from tkinter import messagebox
 import math
 from tkinter.ttk import Treeview
-from turtle import circle
 
 x_axis_center = 0
 y_axis_center = 0
@@ -122,6 +120,32 @@ class App():
         self.btn_circle_remove = Button(self.frame, text='Удалить окружность', font='"monotxt_iv50" 9', command=self.remove_circle, bg='#ab85e6', activebackground='#b890f5', fg='#2b213b')
         self.btn_circle_remove.place(relwidth=0.9, relx=0.05, rely=0.73, relheight=0.04)
 
+        # DOT EDIT (CHANGE COORDS)
+        self.lab_dot_edit = Label(self.frame, font='"monotxt_iv50" 10', bg='#9c79d1', fg='#47385e', justify=CENTER, text='-----------------------------РЕДАКТИРОВАНИЕ-ТОЧКИ-----------------------------')
+        self.lab_dot_edit.place(rely=0.78, relwidth=1)
+
+        self.ent_dot_edit_x = Entry(self.frame, font='"monotxt_iv50" 12', bg='#b890f5', fg='#7b5ea6', justify=CENTER)
+        self.ent_dot_edit_x.insert(0,'X')
+        self.ent_dot_edit_x.place(relwidth=0.4, relx=0.05, rely=0.81, relheight=0.04)
+
+        self.lab_dot_edit_x_sep_y = Label(self.frame, text=';', font='"monotxt_iv50" 15', fg='#2b213b', bg='#9c79d1')
+        self.lab_dot_edit_x_sep_y.place(relx=0.475, rely=0.81, relheight=0.04)
+
+        self.ent_dot_edit_y = Entry(self.frame, font='"monotxt_iv50" 12', bg='#b890f5', fg='#7b5ea6', justify=CENTER)
+        self.ent_dot_edit_y.insert(0,'Y')
+        self.ent_dot_edit_y.place(relwidth=0.4, relx=0.55, rely=0.81, relheight=0.04)
+
+        self.ent_dot_edit_id = Entry(self.frame, font='"monotxt_iv50" 12', bg='#b890f5', fg='#7b5ea6', justify=CENTER)
+        self.ent_dot_edit_id.insert(0,'ID')
+        self.ent_dot_edit_id.place(relwidth=0.4, relx=0.05, rely=0.86, relheight=0.04)
+
+        self.btn_dot_edit = Button(self.frame, text='Изменить точку', font='"monotxt_iv50" 9', bg='#ab85e6', activebackground='#b890f5', fg='#2b213b', command=self.edit_dot)
+        self.btn_dot_edit.place(relwidth=0.45, relx=0.5, rely=0.86, relheight=0.04)
+
+        self.ent_dot_edit_x.bind('<Button-1>', self.entry_mode_dot_edit_x)
+        self.ent_dot_edit_y.bind('<Button-1>', self.entry_mode_dot_edit_y)
+        self.ent_dot_edit_id.bind('<Button-1>', self.entry_mode_dot_edit_id)
+
         # UNFOCUS
         self.frame.bind_all('<Button-1>', self.unfocus)
 
@@ -159,6 +183,21 @@ class App():
         if (self.ent_dot_id.get() == 'ID'):
             self.ent_dot_id.delete(0, END)
             self.ent_dot_id['fg'] = '#2b213b'
+    
+    def entry_mode_dot_edit_x(self, event):
+        if (self.ent_dot_edit_x.get() == 'X'):
+            self.ent_dot_edit_x.delete(0, END)
+            self.ent_dot_edit_x['fg'] = '#2b213b'
+
+    def entry_mode_dot_edit_y(self, event):
+        if (self.ent_dot_edit_y.get() == 'Y'):
+            self.ent_dot_edit_y.delete(0, END)
+            self.ent_dot_edit_y['fg'] = '#2b213b'
+    
+    def entry_mode_dot_edit_id(self, event):
+        if (self.ent_dot_edit_id.get() == 'ID'):
+            self.ent_dot_edit_id.delete(0, END)
+            self.ent_dot_edit_id['fg'] = '#2b213b'
     
     def create_dot(self, event):
         dot_id = self.canv.create_oval([event.x - 3, event.y - 3], [event.x + 3, event.y + 3], fill='#b890f5', tags='draggable')
@@ -269,6 +308,59 @@ class App():
             self.last_action = ['RemoveCircle', [(x0 - x_axis_center / k_scale), -(y0 - y_axis_center) / k_scale, (x1 - x_axis_center) / k_scale, -(y1 - y_axis_center) / k_scale]]
             self.canv.delete(self.circle_id)
             self.circle_id = -1
+    
+    def edit_dot(self):
+        global k_scale, x_axis_center, y_axis_center
+        x = self.ent_dot_edit_x.get()
+        y = self.ent_dot_edit_y.get()
+        try:
+            float(x)
+            float(y)
+        except ValueError:
+            messagebox.showerror(title='Ошибка!', message='Неверно введены координаты точки')
+            self.ent_dot_edit_x.delete(0, END)
+            self.ent_dot_edit_y.delete(0, END)
+            self.ent_dot_edit_x.insert(0, 'X')
+            self.ent_dot_edit_y.insert(0, 'Y')
+            self.ent_dot_edit_x['fg'] = '#7b5ea6'
+            self.ent_dot_edit_y['fg'] = '#7b5ea6'
+            return
+        x = float(x)
+        y = float(y)
+
+        id = self.ent_dot_edit_id.get()
+        try:
+            int(id)
+        except ValueError:
+            messagebox.showerror(title='Ошибка!', message='Неверно введен ID точки.\nПожалуйста введите ID нужной точки из таблицы сверху!')
+            self.ent_dot_edit_id.delete(0, END)
+            self.ent_dot_edit_id.insert(0, 'ID')
+            self.ent_dot_edit_id['fg'] = '#7b5ea6'
+            return
+        id = int(id)
+        for i in self.dots_dict:
+            if i == id:
+                self.canv.coords(id, x * k_scale + x_axis_center - 3, (-y) * k_scale + y_axis_center - 3, x * k_scale + x_axis_center + 3, (-y) * k_scale + y_axis_center + 3)
+                self.ent_dot_edit_x.delete(0, END)
+                self.ent_dot_edit_y.delete(0, END)
+                self.ent_dot_edit_x.insert(0, 'X')
+                self.ent_dot_edit_y.insert(0, 'Y')
+                self.ent_dot_edit_x['fg'] = '#7b5ea6'
+                self.ent_dot_edit_y['fg'] = '#7b5ea6'
+                self.ent_dot_edit_id.delete(0, END)
+                self.ent_dot_edit_id.insert(0, 'ID')
+                self.ent_dot_edit_id['fg'] = '#7b5ea6'
+                self.last_action = ['EditDot', self.dots_dict[id]]
+                self.dots_dict[id] = (x * k_scale + x_axis_center, (-y) * k_scale + y_axis_center)
+                for item in self.dots_table.get_children():
+                    if id == self.dots_table.item(item)['values'][0]:
+                        self.last_action = ['EditDot', [id, self.dots_table.item(item)['values'][1], self.dots_table.item(item)['values'][2]]]
+                        self.dots_table.item(item, values=(id, x, y))
+                return
+        messagebox.showerror(title='Ошибка!', message='Неверно введен ID точки!\nПожалуйста введите ID нужной точки из таблицы сверху')
+        self.ent_dot_id.delete(0, END)
+        self.ent_dot_id.insert(0, 'ID')
+        self.ent_dot_id['fg'] = '#7b5ea6'
 
     def unfocus(self, event):
         if event.widget != self.ent_x:
@@ -300,6 +392,21 @@ class App():
             if self.ent_dot_id.get() == '':
                 self.ent_dot_id.insert(0, 'ID')
                 self.ent_dot_id['fg'] = '#7b5ea6'
+                event.widget.focus()
+        if event.widget != self.ent_dot_edit_x:
+            if self.ent_dot_edit_x.get() == '':
+                self.ent_dot_edit_x.insert(0, 'X')
+                self.ent_dot_edit_x['fg'] = '#7b5ea6'
+                event.widget.focus()
+        if event.widget != self.ent_dot_edit_y:
+            if self.ent_dot_edit_y.get() == '':
+                self.ent_dot_edit_y.insert(0, 'Y')
+                self.ent_dot_edit_y['fg'] = '#7b5ea6'
+                event.widget.focus()
+        if event.widget != self.ent_dot_edit_id:
+            if self.ent_dot_edit_id.get() == '':
+                self.ent_dot_edit_id.insert(0, 'ID')
+                self.ent_dot_edit_id['fg'] = '#7b5ea6'
                 event.widget.focus()
         if event.widget != self.dots_table:
             if len(self.dots_table.selection()) > 0:
@@ -402,6 +509,15 @@ class App():
             elif action == 'RemoveCircle':
                 x0, y0, x1, y1 = self.last_action[1]
                 self.circle_id = self.canv.create_oval([x0 * k_scale + x_axis_center, -y0 * k_scale + y_axis_center], [x1 * k_scale  + x_axis_center, -y1 * k_scale + y_axis_center])
+            elif action == 'EditDot':
+                dot_id, x, y = self.last_action[1]
+                x = float(x)
+                y = float(y)
+                self.canv.coords(dot_id, x * k_scale + x_axis_center - 3, (-y) * k_scale + y_axis_center - 3, x * k_scale + x_axis_center + 3, (-y) * k_scale + y_axis_center + 3)
+                self.dots_dict[dot_id] = (x * k_scale + x_axis_center, (-y) * k_scale + y_axis_center)
+                for item in self.dots_table.get_children():
+                    if dot_id == self.dots_table.item(item)['values'][0]:
+                        self.dots_table.item(item, values=(dot_id, x, y))
             elif action == 'Zoom':
                 if self.last_action[1] == 2:
                     self.canv.scale(ALL, x_axis_center, y_axis_center, 2, 2)
@@ -426,6 +542,7 @@ class App():
                 self.canv.coords(self.y_axis, w / 2, 0, w / 2, h)
                 self.canv.tag_lower(self.x_axis)
                 self.canv.tag_lower(self.y_axis)
+                self.lab_scale['text'] = 'x' + str(k_scale)
             self.last_action = []
         if len(self.dots_table.selection()) > 0:
             self.dots_table.selection_remove(self.dots_table.selection()[0])

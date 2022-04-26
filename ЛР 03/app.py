@@ -226,24 +226,6 @@ class App():
         self.lab_color = Label(self.frame, justify='center', text='-------------------------------------------------------------------------------УСТАНОВКА-ЦВЕТА------------------------------------------------------------------------------', foreground='gray', font='"Segoe UI Variable" 10')
         self.lab_color.place(rely=0.05, relwidth=1)
 
-        # self.lab_bgColor = ttk.Label(self.frame, text='Фон', font='"Segoe UI Variable" 12')
-        # self.lab_bgColor.place(relx=0.05, rely=0.09)
-
-        # self.bgBlackButton=ttk.Button(self.frame, style='black.TButton', command=lambda: self.change_bg_color('#000000'))
-        # self.bgBlackButton.place(relwidth=0.12, relx=0.23, rely=0.09, relheight=0.03)
-
-        # self.bgWhiteButton = ttk.Button(self.frame, style='white.TButton', command=lambda: self.change_bg_color('#ffffff'))
-        # self.bgWhiteButton.place(relwidth=0.12, relx=0.38, rely=0.09, relheight=0.03)
-
-        # self.bgRedButton = ttk.Button(self.frame, style='red.TButton', command=lambda: self.change_bg_color('#ff0000'))
-        # self.bgRedButton.place(relwidth=0.12, relx=0.53, rely=0.09, relheight=0.03)
-
-        # self.bgGreenButton = ttk.Button(self.frame, style='green.TButton', command=lambda: self.change_bg_color('#00ff00'))
-        # self.bgGreenButton.place(relwidth=0.12, relx=0.68, rely=0.09, relheight=0.03)
-
-        # self.bgBlueButton = ttk.Button(self.frame, style='blue.TButton', command=lambda: self.change_bg_color('#0000ff'))
-        # self.bgBlueButton.place(relwidth=0.12, relx=0.83, rely=0.09, relheight=0.03)
-
         self.lab_lineColor = ttk.Label(self.frame, text='Линия', font='"Segoe UI Variable" 12')
         self.lab_lineColor.place(relx=0.05, rely=0.10)
 
@@ -297,6 +279,10 @@ class App():
         self.ent_xe.bind('<Button-1>', self.entry_mode_xe)
         self.ent_ye.bind('<Button-1>', self.entry_mode_ye)
 
+        self.line_coords = []
+        self.coords_id = []
+        self.canv.bind('<Button-1>', self.draw_lineMouse)
+
         # DRAW BUNDLE
         self.lab_bundle = Label(self.frame, justify='center', text='------------------------------------------------------------------------------ПОСТРОЕНИЕ-ПУЧКА------------------------------------------------------------------------------', foreground='gray', font='"Segoe UI Variable" 10')
         self.lab_bundle.place(rely=0.48, relwidth=1)
@@ -347,6 +333,22 @@ class App():
         cur_bgColor = color
         self.canv.configure(background=color)
 
+    def draw_lineMouse(self, event):
+        self.coords_id.append(self.draw_pixel(event.x, event.y, cur_lineColor))
+        self.line_coords.append(event.x)
+        self.line_coords.append(event.y)
+        if len(self.line_coords) == 4:
+            xb = self.line_coords[0]
+            yb = self.line_coords[1]
+            xe = self.line_coords[2]
+            ye = self.line_coords[3]
+            self.last_action = []
+            self.draw_line(xb, yb, xe, ye)
+            self.line_coords = []
+            self.canv.delete(self.coords_id[0])
+            self.canv.delete(self.coords_id[1])
+            self.coords_id = []
+
     def draw_lineBtn(self):
         xb = self.ent_xb.get()
         yb = self.ent_yb.get()
@@ -376,6 +378,7 @@ class App():
         yb = float(yb)
         xe = float(xe)
         ye = float(ye)
+        self.last_action = []
         self.draw_line(xb, yb, xe, ye)
     
     def draw_bundleBtn(self):
@@ -401,6 +404,7 @@ class App():
         xe = xb + radius
         ye = yb
         ang = math.radians(0)
+        self.last_action = []
         while ang < math.radians(360):
             self.draw_line(xb, yb, xe, ye)
             ang = ang + math.radians(angle)
@@ -411,29 +415,31 @@ class App():
         match self.readonly_combo.get():
             case 'ЦДА':
                 pixels = dda(xb, yb, xe, ye)
-                self.draw_pixels(pixels)
+                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
             case 'Брезенхем целые числа':
                 pixels = bresenham_int(xb, yb, xe, ye)
-                self.draw_pixels(pixels)
+                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
             case 'Брезенхем действительные числа':
                 pixels = bresenham_float(xb, yb, xe, ye)
-                self.draw_pixels(pixels)
+                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
             case 'Брезенхем с устранением ступенчатости':
                 pixels = bresenham_stepping(xb, yb, xe, ye)
-                self.draw_pixels(pixels)
+                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
             case 'ВУ':
                 pixels = wu(xb, yb, xe, ye)
-                self.draw_pixels(pixels)
+                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
             case _:
-                self.canv.create_line(xb, yb, xe, ye)
+                self.last_action.append(([self.canv.create_line(xb, yb, xe, ye)], 'Create line'))
 
     def draw_pixels(self, pixels):
+        id_arr = []
         for i in range(len(pixels)):
             color = get_color_by_intensive(pixels[i][2])
-            self.draw_pixel(pixels[i][0], pixels[i][1], color)
+            id_arr.append(self.draw_pixel(pixels[i][0], pixels[i][1], color))
+        return id_arr
 
     def draw_pixel(self, x, y, color):
-        self.canv.create_line(x, y, x + 1, y + 1, fill=color)
+        return self.canv.create_line(x, y, x + 1, y + 1, fill=color)
     
     def entry_mode_xb(self, event):
         if (self.ent_xb.get() == 'Xн'):
@@ -508,12 +514,12 @@ class App():
         self.canv.move(ALL, x_axis_center - prev_x_axis_center, y_axis_center - prev_y_axis_center)
     
     def redo(self, event):
-        global x_axis_center, y_axis_center
-        if self.last_action != []:
-            action = self.last_action[0]
-            if action == 'action':
-                print(action)
-            self.last_action = []
+        for i in range(len(self.last_action)):
+            action = self.last_action[i][1]
+            if action == 'Create line':
+                for id in self.last_action[i][0]:
+                    self.canv.delete(id)
+        self.last_action = []
     
     def prog_info(self):
         messagebox.showinfo(title='О программе', message='Условие:\nРеализация и исследование алгоритмов построения отрезков\n'

@@ -1,175 +1,16 @@
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
-from numpy import sign
-import math
-import colorutils
+import canonical
+import bresenham
+from cmp_time import cmp_time
+import midpoint
+import parametric
 
 x_axis_center = 350
 y_axis_center = 350
 
 cur_lineColor = '#000000'
-
-def get_color_by_intensive(inten):
-    color_tmp = colorutils.Color(hex=cur_lineColor)
-    r = color_tmp.red + (255 - color_tmp.red) * (1 - inten)
-    g = color_tmp.green + (255 - color_tmp.green) * (1 - inten)
-    b = color_tmp.blue + (255 - color_tmp.blue) * (1 - inten)
-    color = colorutils.Color((r, g, b))
-    return color.hex
-
-def dda(xb, yb, xe, ye):
-    pixels = []
-    dx = xe - xb
-    dy = ye - yb
-    l = abs(dy)
-    if abs(dx) > abs(dy):
-        l = abs(dx)
-    dx = dx / l
-    dy = dy / l
-    x = float(xb)
-    y = float(yb)
-    for _ in range(int(l)):
-        pixels.append((int(x), int(y), 1))
-        x = x + dx
-        y = y + dy
-    return pixels
-
-def bresenham_int(xb, yb, xe, ye):
-    pixels = []
-    x = xb
-    y = yb
-    dx = xe - xb
-    dy = ye - yb
-    sx = sign(dx)
-    sy = sign(dy)
-    dx = abs(dx)
-    dy = abs(dy)
-    change_flag = 0
-    if dx <= dy:
-        change_flag = 1
-        tmp = dx
-        dx = dy
-        dy = tmp
-    m = dy / dx
-    e = m - 0.5
-    for i in range(1, int(dx + 1)):
-        pixels.append((x, y, 1))
-        if e >= 0:
-            if change_flag == 0:
-                y = y + sy
-            else:
-                x = x + sx
-            e = e - 1
-        if change_flag == 0:
-            x = x + sx
-        else:
-            y = y + sy
-        e = e + m
-    return pixels
-
-def bresenham_float(xb, yb, xe, ye):
-    pixels = []
-    x = xb
-    y = yb
-    dx = xe - xb
-    dy = ye - yb
-    sx = sign(dx)
-    sy = sign(dy)
-    dx = abs(dx)
-    dy = abs(dy)
-    change_flag = 0
-    if dx <= dy:
-        change_flag = 1
-        tmp = dx
-        dx = dy
-        dy = tmp
-    e = 2 * dy - dx
-    for _ in range(1, int(dx + 1)):
-        pixels.append((x, y, 1))
-        if e >= 0:
-            if change_flag == 0:
-                y = y + sy
-            else:
-                x = x + sx
-            e = e - 2 * dx
-        if change_flag == 0:
-            x = x + sx
-        else:
-            y = y + sy
-        e = e + 2 * dy
-    return pixels
-
-def bresenham_stepping(xb, yb, xe, ye):
-    pixels = []
-    dx = xe - xb
-    dy = ye - yb
-    sx = sign(dx)
-    sy = sign(dy)
-    dx = abs(dx)
-    dy = abs(dy)
-    change_flag = 0
-    if dx <= dy:
-        change_flag = 1
-        dx, dy = dy, dx
-    m = dy / dx
-    e = 1 / 2
-    x = xb
-    y = yb
-    w = 1 - m
-    pixels.append((x, y, e))
-    for _ in range(1, int(dx)):
-        if e < w:
-            if change_flag == 0:
-                x = x + sx
-            else:
-                y = y + sy
-            e = e + m
-        else:
-            x = x + sx
-            y = y + sy
-            e = e - w
-        pixels.append((x, y, e))
-    return pixels
-
-def wu(xb, yb, xe, ye):
-    pixels = []
-    x = xb
-    y = yb
-    dx = xe - xb
-    dy = ye - yb
-    sx = 1 if dx == 0 else int(sign(dx))
-    sy = 1 if dy == 0 else int(sign(dy))
-    dx = abs(dx)
-    dy = abs(dy)
-    change_flag = 0
-    if dx <= dy:
-        change_flag = 1
-        tmp = dx
-        dx = dy
-        dy = tmp
-
-    m = dy / dx
-    e = -1
-    if not change_flag:
-        for _ in range(int(dx)):
-            pixels.append((x, y, -e))
-            pixels.append((x, y + sy, 1 + e))
-            e += m
-            if e >= 0:
-                y += sy
-                e -= 1
-            x += sx
-    else:
-        for _ in range(int(dx)):
-            pixels.append((x, y, -e))
-            pixels.append((x + sx, y + sy, 1 + e))
-            e += m
-            if e >= 0:
-                x += sx
-                e -= 1
-            y += sy
-    return pixels
 
 class App():
     def __init__(self) -> None:
@@ -212,7 +53,7 @@ class App():
         self.canv.bind("<Configure>", self.configure)
 
 
-        self.readonly_combo_list = ["Каноническое уравнение ", "Параметрическое уравнение", "Брезенхем", "Алгоритм средней точки", "Библиотечная функция"]
+        self.readonly_combo_list = ["Каноническое уравнение", "Параметрическое уравнение", "Брезенхем", "Алгоритм средней точки", "Библиотечная функция"]
         self.readonly_combo = ttk.Combobox(self.frame, state="readonly", values=self.readonly_combo_list, font='"Segoe UI Variable" 10')
         self.readonly_combo.current(0)
         self.readonly_combo.place(relwidth=0.9, rely=0.01, relx=0.05)
@@ -270,9 +111,10 @@ class App():
         self.ent_ry.insert(0,'Ry')
         self.ent_ry.place(relwidth=0.4, relx=0.55, rely=0.32, relheight=0.04)
 
-        self.btn_createCircle = ttk.Button(self.frame, text='Построить окружность', style='default.TButton', command=self.draw_lineBtn)
+        self.btn_createCircle = ttk.Button(self.frame, text='Построить окружность', style='default.TButton', command=self.draw_circleBtn)
         self.btn_createCircle.place(relwidth=0.44, relx=0.04, rely=0.37, relheight=0.04)
-        self.btn_createEllipse = ttk.Button(self.frame, text='Построить эллипс', style='default.TButton', command=self.draw_lineBtn)
+
+        self.btn_createEllipse = ttk.Button(self.frame, text='Построить эллипс', style='default.TButton', command=self.draw_ellipseBtn)
         self.btn_createEllipse.place(relwidth=0.44, relx=0.52, rely=0.37, relheight=0.04)
 
         self.ent_xc.bind('<Button-1>', self.entry_mode_xc)
@@ -280,10 +122,6 @@ class App():
         self.ent_r.bind('<Button-1>', self.entry_mode_r)
         self.ent_rx.bind('<Button-1>', self.entry_mode_rx)
         self.ent_ry.bind('<Button-1>', self.entry_mode_ry)
-
-        self.line_coords = []
-        self.coords_id = []
-        self.canv.bind('<Button-1>', self.draw_lineMouse)
 
         # DRAW SPECTRE
         self.lab_bundle = Label(self.frame, justify='center', text='------------------------------------------------------------------------------ПОСТРОЕНИЕ-СПЕКТРА------------------------------------------------------------------------------', foreground='gray', font='"Segoe UI Variable" 10')
@@ -309,9 +147,10 @@ class App():
         self.ent_rySpectre.insert(0,'Ry')
         self.ent_rySpectre.place(relwidth=0.4, relx=0.55, rely=0.57, relheight=0.04)
 
-        self.btn_createSpectreC = ttk.Button(self.frame, text='Спектр окружность', style='default.TButton', command=self.draw_lineBtn)
+        self.btn_createSpectreC = ttk.Button(self.frame, text='Спектр окружность', style='default.TButton', command=self.draw_spectreCBtn)
         self.btn_createSpectreC.place(relwidth=0.44, relx=0.04, rely=0.62, relheight=0.04)
-        self.btn_createSpectreE = ttk.Button(self.frame, text='Спектр эллипс', style='default.TButton', command=self.draw_lineBtn)
+
+        self.btn_createSpectreE = ttk.Button(self.frame, text='Спектр эллипс', style='default.TButton', command=self.draw_spectreEBtn)
         self.btn_createSpectreE.place(relwidth=0.44, relx=0.52, rely=0.62, relheight=0.04)
 
         self.ent_step.bind('<Button-1>', self.entry_mode_step)
@@ -320,11 +159,11 @@ class App():
         self.ent_rxSpectre.bind('<Button-1>', self.entry_mode_rxSpectre)
         self.ent_rySpectre.bind('<Button-1>', self.entry_mode_rySpectre)
 
-        # STEPPING
+        # TIME
         self.lab_stepping = Label(self.frame, justify='center', text='--------------------------------------------------------------------ИЗМЕРЕНИЕ-ВРЕМЕНИ--------------------------------------------------------------------', foreground='gray', font='"Segoe UI Variable" 10')
         self.lab_stepping.place(rely=0.7, relwidth=1)
 
-        self.btn_createGisto = ttk.Button(self.frame, text='Измерить время', style='default.TButton')
+        self.btn_createGisto = ttk.Button(self.frame, text='Измерить время', style='default.TButton', command=cmp_time)
         self.btn_createGisto.place(relwidth=0.92, relx=0.04, rely=0.75, relheight=0.06)
 
         # UNFOCUS
@@ -351,114 +190,178 @@ class App():
         global cur_bgColor
         cur_bgColor = color
         self.canv.configure(background=color)
-
-    def draw_lineMouse(self, event):
-        self.coords_id.append(self.draw_pixel(event.x, event.y, cur_lineColor))
-        self.line_coords.append(event.x)
-        self.line_coords.append(event.y)
-        if len(self.line_coords) == 4:
-            xb = self.line_coords[0]
-            yb = self.line_coords[1]
-            xe = self.line_coords[2]
-            ye = self.line_coords[3]
-            self.last_action = []
-            self.draw_line(xb, yb, xe, ye)
-            self.line_coords = []
-            self.canv.delete(self.coords_id[0])
-            self.canv.delete(self.coords_id[1])
-            self.coords_id = []
-
-    def draw_lineBtn(self):
-        xb = self.ent_xb.get()
-        yb = self.ent_yb.get()
-        xe = self.ent_xe.get()
-        ye = self.ent_ye.get()
-        try:
-            int(xb)
-            int(yb)
-            int(xe)
-            int(ye)
-        except ValueError:
-            messagebox.showerror(title='Ошибка!', message='Неверно введены координаты')
-            self.ent_xb.delete(0, END)
-            self.ent_yb.delete(0, END)
-            self.ent_xe.delete(0, END)
-            self.ent_ye.delete(0, END)
-            self.ent_xb.insert(0, 'Xн')
-            self.ent_yb.insert(0, 'Yн')
-            self.ent_xe.insert(0, 'Xк')
-            self.ent_ye.insert(0, 'Yк')
-            self.ent_xb['fg'] = 'gray'
-            self.ent_yb['fg'] = 'gray'
-            self.ent_xe['fg'] = 'gray'
-            self.ent_ye['fg'] = 'gray'
-            return
-        xb = float(xb)
-        yb = float(yb)
-        xe = float(xe)
-        ye = float(ye)
-        self.last_action = []
-        self.draw_line(xb, yb, xe, ye)
     
-    def draw_bundleBtn(self):
-        global x_axis_center, y_axis_center
-        radius = self.ent_radius.get()
-        angle = self.ent_angle.get()
+    def draw_circleBtn(self):
+        self.last_action = []
+        xc = self.ent_xc.get()
+        yc = self.ent_yc.get()
+        r = self.ent_r.get()
         try:
-            int(radius)
-            int(angle)
+            int(xc)
+            int(yc)
+            int(r)
         except ValueError:
             messagebox.showerror(title='Ошибка!', message='Неверно введены данные')
-            self.ent_radius.delete(0, END)
-            self.ent_angle.delete(0, END)
-            self.ent_radius.insert(0, 'RADIUS')
-            self.ent_angle.insert(0, 'ANGLE')
-            self.ent_radius['fg'] = 'gray'
-            self.ent_angle['fg'] = 'gray'
+            self.ent_xc.delete(0, END)
+            self.ent_yc.delete(0, END)
+            self.ent_r.delete(0, END)
+            self.ent_xc.insert(0, 'Xц')
+            self.ent_yc.insert(0, 'Yц')
+            self.ent_r.insert(0, 'R')
+            self.ent_xc['fg'] = 'gray'
+            self.ent_yc['fg'] = 'gray'
+            self.ent_r['fg'] = 'gray'
             return
-        radius = int(radius)
-        angle = int(angle)
-        xb = x_axis_center
-        yb = y_axis_center
-        xe = xb + radius
-        ye = yb
-        ang = math.radians(0)
+        xc = float(xc)
+        yc = float(yc)
+        r = float(r)
         self.last_action = []
-        while ang < math.radians(360):
-            self.draw_line(xb, yb, xe, ye)
-            ang = ang + math.radians(angle)
-            xe = int(xb + radius * math.cos(ang))
-            ye = int(yb - radius * math.sin(ang))
-
-    def draw_line(self, xb, yb, xe, ye):
+        self.draw_circle(xc, yc, r)
+    
+    def draw_ellipseBtn(self):
+        self.last_action = []
+        xc = self.ent_xc.get()
+        yc = self.ent_yc.get()
+        rx = self.ent_rx.get()
+        ry = self.ent_ry.get()
+        try:
+            int(xc)
+            int(yc)
+            int(rx)
+            int(ry)
+        except ValueError:
+            messagebox.showerror(title='Ошибка!', message='Неверно введены данные')
+            self.ent_xc.delete(0, END)
+            self.ent_yc.delete(0, END)
+            self.ent_rx.delete(0, END)
+            self.ent_ry.delete(0, END)
+            self.ent_xc.insert(0, 'Xц')
+            self.ent_yc.insert(0, 'Yц')
+            self.ent_rx.insert(0, 'Rx')
+            self.ent_ry.insert(0, 'Ry')
+            self.ent_xc['fg'] = 'gray'
+            self.ent_yc['fg'] = 'gray'
+            self.ent_rx['fg'] = 'gray'
+            self.ent_ry['fg'] = 'gray'
+            return
+        xc = float(xc)
+        yc = float(yc)
+        rx = float(rx)
+        ry = float(ry)
+        self.last_action = []
+        self.draw_ellipse(xc, yc, rx, ry)
+    
+    def draw_spectreCBtn(self):
+        global x_axis_center, y_axis_center
+        r = self.ent_rSpectre.get()
+        step = self.ent_step.get()
+        amount = self.ent_amount.get()
+        try:
+            int(r)
+            int(step)
+            int(amount)
+        except ValueError:
+            messagebox.showerror(title='Ошибка!', message='Неверно введены данные')
+            self.ent_rSpectre.delete(0, END)
+            self.ent_step.delete(0, END)
+            self.ent_amount.delete(0, END)
+            self.ent_rSpectre.insert(0, 'R')
+            self.ent_step.insert(0, 'STEP (R, Rx)')
+            self.ent_amount.insert(0, 'AMOUNT')
+            self.ent_rSpectre['fg'] = 'gray'
+            self.ent_step['fg'] = 'gray'
+            self.ent_amount['fg'] = 'gray'
+            return
+        r = int(r)
+        step = int(step)
+        amount = int(amount)
+        self.last_action = []
+        for i in range(amount):
+            self.draw_circle(x_axis_center, y_axis_center, r)
+            r = r + step
+    
+    def draw_spectreEBtn(self):
+        global x_axis_center, y_axis_center
+        rx = self.ent_rxSpectre.get()
+        ry = self.ent_rySpectre.get()
+        step = self.ent_step.get()
+        amount = self.ent_amount.get()
+        try:
+            int(rx)
+            int(ry)
+            int(step)
+            int(amount)
+        except ValueError:
+            messagebox.showerror(title='Ошибка!', message='Неверно введены данные')
+            self.ent_rxSpectre.delete(0, END)
+            self.ent_rySpectre.delete(0, END)
+            self.ent_step.delete(0, END)
+            self.ent_amount.delete(0, END)
+            self.ent_rxSpectre.insert(0, 'Rx')
+            self.ent_rySpectre.insert(0, 'Ry')
+            self.ent_step.insert(0, 'STEP (R, Rx)')
+            self.ent_amount.insert(0, 'AMOUNT')
+            self.ent_rxSpectre['fg'] = 'gray'
+            self.ent_rySpectre['fg'] = 'gray'
+            self.ent_step['fg'] = 'gray'
+            self.ent_amount['fg'] = 'gray'
+            return
+        rx = int(rx)
+        ry = int(ry)
+        step = int(step)
+        amount = int(amount)
+        y_step = (ry * step) / rx
+        self.last_action = []
+        for _ in range(amount):
+            self.draw_ellipse(x_axis_center, y_axis_center, rx, ry)
+            rx = int(rx + step)
+            ry = int(ry + y_step)
+    
+    def draw_circle(self, xc, yc, r):
+        global cur_lineColor
         match self.readonly_combo.get():
-            case 'ЦДА':
-                pixels = dda(xb, yb, xe, ye)
-                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
-            case 'Брезенхем целые числа':
-                pixels = bresenham_int(xb, yb, xe, ye)
-                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
-            case 'Брезенхем действительные числа':
-                pixels = bresenham_float(xb, yb, xe, ye)
-                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
-            case 'Брезенхем с устранением ступенчатости':
-                pixels = bresenham_stepping(xb, yb, xe, ye)
-                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
-            case 'ВУ':
-                pixels = wu(xb, yb, xe, ye)
-                self.last_action.append((self.draw_pixels(pixels), 'Create line'))
+            case 'Каноническое уравнение':
+                pixels = canonical.cancircle(xc, yc, r)
+                self.last_action.append((self.draw_pixels(pixels), 'Create circle'))
+            case 'Параметрическое уравнение':
+                pixels = parametric.parcircle(xc, yc, r)
+                self.last_action.append((self.draw_pixels(pixels), 'Create circle'))
+            case 'Брезенхем':
+                pixels = bresenham.brescircle(xc, yc, r)
+                self.last_action.append((self.draw_pixels(pixels), 'Create circle'))
+            case 'Алгоритм средней точки':
+                pixels = midpoint.midpcircle(xc, yc, r)
+                self.last_action.append((self.draw_pixels(pixels), 'Create circle'))
             case _:
-                self.last_action.append(([self.canv.create_line(xb, yb, xe, ye)], 'Create line'))
+                self.last_action.append(([self.canv.create_oval(xc - r, yc - r, xc + r, yc + r, outline=cur_lineColor)], 'Create circle'))
+    
+    def draw_ellipse(self, xc, yc, rx, ry):
+        global cur_lineColor
+        match self.readonly_combo.get():
+            case 'Каноническое уравнение':
+                pixels = canonical.canellipse(xc, yc, rx, ry)
+                self.last_action.append((self.draw_pixels(pixels), 'Create ellipse'))
+            case 'Параметрическое уравнение':
+                pixels = parametric.parellipse(xc, yc, rx, ry)
+                self.last_action.append((self.draw_pixels(pixels), 'Create ellipse'))
+            case 'Брезенхем':
+                pixels = bresenham.bresellipse(xc, yc, rx, ry)
+                self.last_action.append((self.draw_pixels(pixels), 'Create ellipse'))
+            case 'Алгоритм средней точки':
+                pixels = midpoint.midpellipse(xc, yc, rx, ry)
+                self.last_action.append((self.draw_pixels(pixels), 'Create ellipse'))
+            case _:
+                self.last_action.append(([self.canv.create_oval(xc - rx, yc - ry, xc + rx, yc + ry, outline=cur_lineColor)], 'Create ellipse'))
 
     def draw_pixels(self, pixels):
         id_arr = []
         for i in range(len(pixels)):
-            color = get_color_by_intensive(pixels[i][2])
-            id_arr.append(self.draw_pixel(pixels[i][0], pixels[i][1], color))
+            id_arr.append(self.draw_pixel(pixels[i][0], pixels[i][1]))
         return id_arr
 
-    def draw_pixel(self, x, y, color):
-        return self.canv.create_line(x, y, x + 1, y + 1, fill=color)
+    def draw_pixel(self, x, y):
+        global cur_lineColor
+        return self.canv.create_line(x, y, x + 1, y + 1, fill=cur_lineColor)
     
     def entry_mode_xc(self, event):
         if (self.ent_xc.get() == 'Xц'):
@@ -575,7 +478,10 @@ class App():
     def redo(self, event):
         for i in range(len(self.last_action)):
             action = self.last_action[i][1]
-            if action == 'Create line':
+            if action == 'Create circle':
+                for id in self.last_action[i][0]:
+                    self.canv.delete(id)
+            if action == 'Create ellipse':
                 for id in self.last_action[i][0]:
                     self.canv.delete(id)
         self.last_action = []

@@ -1,2 +1,2 @@
 # CG
-BMSTU IU7 Computer Graphics
+BMSTU ICS7 Computer Graphics

@@ -2,12 +2,48 @@ from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
 from tkinter import colorchooser
+import colorutils
 import time
+from numpy import sign
 
 outLineColor = '#000000'
 cur_fillColor = '#0000ff'
 
-# def 
+x_axis_center = 350
+y_axis_center = 350
+
+def bresenham_int(xb, yb, xe, ye):
+    pixels = []
+    x = xb
+    y = yb
+    dx = xe - xb
+    dy = ye - yb
+    sx = sign(dx)
+    sy = sign(dy)
+    dx = abs(dx)
+    dy = abs(dy)
+    change_flag = 0
+    if dx <= dy:
+        change_flag = 1
+        tmp = dx
+        dx = dy
+        dy = tmp
+    m = dy / dx
+    e = m - 0.5
+    for i in range(1, int(dx + 1)):
+        pixels.append((x, y, 1))
+        if e >= 0:
+            if change_flag == 0:
+                y = y + sy
+            else:
+                x = x + sx
+            e = e - 1
+        if change_flag == 0:
+            x = x + sx
+        else:
+            y = y + sy
+        e = e + m
+    return pixels
 
 class App():
     def __init__(self) -> None:
@@ -31,6 +67,8 @@ class App():
         self.frame.place(relwidth=0.3, relheight=1)
 
         self.canv = Canvas(self.root, highlightthickness=0, bg='white')
+        self.bgImage = PhotoImage(file='bg.png')
+        self.bgId = self.canv.create_image(0, 0, anchor='nw', image=self.bgImage)
         self.canv.place(relwidth=0.7, relheight=1, relx=0.3)
 
         self.menubar = Menu(self.root)
@@ -131,6 +169,8 @@ class App():
 
     def clean(self):
         self.canv.delete(ALL)
+        self.bgImage = PhotoImage(file='bg.png')
+        self.bgId = self.canv.create_image(0, 0, anchor='nw', image=self.bgImage)
         self.line_coords = []
 
     def change_line_color(self, color):
@@ -150,14 +190,15 @@ class App():
             self.yMin, self.yMax = event.y, event.y
         else:
             self.xMin = event.x if event.x < self.xMin else self.xMin
-            self.xMax = event.x if event.x > self.xMax else self.xMax
+            self.xMax = event.x if event.x >= self.xMax else self.xMax
             self.yMin = event.y if event.y < self.yMin else self.yMin
-            self.yMax = event.y if event.y > self.yMax else self.yMax
+            self.yMax = event.y if event.y >= self.yMax else self.yMax
         self.line_coords.append((event.x, event.y))
         if len(self.line_coords) == 2:
             xb, yb = self.line_coords[0]
             xe, ye = self.line_coords[1]
-            self.last_action.append(self.canv.create_line(xb, yb, xe, ye, fill='#000000'))
+            pixels = bresenham_int(xb, yb, xe, ye)
+            self.draw_pixels(pixels)
             self.line_coords = []
             self.line_coords.append((xe, ye))
 
@@ -184,52 +225,84 @@ class App():
             self.yMin, self.yMax = y, y
         else:
             self.xMin = x if x < self.xMin else self.xMin
-            self.xMax = x if x > self.xMax else self.xMax
+            self.xMax = x if x >= self.xMax else self.xMax
             self.yMin = y if y < self.yMin else self.yMin
-            self.yMax = y if y > self.yMax else self.yMax
+            self.yMax = y if y >= self.yMax else self.yMax
         self.line_coords.append((x, y))
         if len(self.line_coords) == 2:
             xb, yb = self.line_coords[0]
             xe, ye = self.line_coords[1]
-            self.last_action.append(self.canv.create_line(xb, yb, xe, ye, fill='#000000'))
+            pixels = bresenham_int(xb, yb, xe, ye)
+            self.draw_pixels(pixels)
+            # self.last_action.append(self.canv.create_line(xb, yb, xe, ye, fill='#000000'))
             self.line_coords = []
             self.line_coords.append((xe, ye))
     
     def get_pixel_color(self, x, y):
-        ids = self.canv.find_overlapping(x, y, x, y)
-
-        if len(ids) > 0:
-            index = ids[-1]
-            color = self.canv.itemcget(index, "fill")
-            return color
-
-        return "#ffffff"
+        # ids = self.canv.find_overlapping(x, y, x, y)
+        color_tmp = colorutils.Color(self.bgImage.get(x, y))
+        return color_tmp.hex
     
+    # def fix_outline(self):
+    #     for y in range(int(self.yMin), int(self.yMax) + 1):
+    #         count = 0
+    #         for x in range(int(self.xMin), int(self.xMax) + 1):
+    #             cur_color = self.get_pixel_color(x, y)
+    #             if cur_color == outLineColor:
+    #                 count += 1
+    #         if count == 1:
+
+
     def fill(self):
         global cur_fillColor, outLineColor
+        update_flag = 0
+        if self.readonly_combo.get() == 'С задержкой':
+            update_flag = 1
         start_time = time.time()
-        for y in range(self.yMin, self.yMax):
+        # for y in range(int(self.yMin), int(self.yMax) + 1):
+        #     flag = False
+        #     prev_color = '#ffffff'
+        #     for x in range(int(self.xMin), int(self.xMax) + 1):
+        #         cur_color = self.get_pixel_color(x, y)
+        #         # next_color = self.get_pixel_color(x + 1, y)
+        #         # if cur_color == outLineColor and (prev_color != outLineColor or next_color != outLineColor):
+        #         #     flag = not flag
+        #         if cur_color == outLineColor and flag == False:
+        #             flag = True
+        #         if cur_color != outLineColor and prev_color == outLineColor and flag == True:
+        #             flag = False
+        #         prev_color = cur_color
+        #         if flag == True:
+        #             self.draw_pixel(x, y, cur_fillColor)
+        #         else:
+        #             self.draw_pixel(x, y, '#ffffff')
+        for y in range(int(self.yMin), int(self.yMax) + 1):
             flag = False
-            for x in range(self.xMin, self.xMax + 1):
-                color = self.get_pixel_color(x + 1, y)
-                if color == outLineColor:
+            for x in range(int(self.xMin), int(self.xMax) + 1):
+                cur_color = self.get_pixel_color(x, y)
+                if cur_color == outLineColor:
                     flag = not flag
                 if flag == True:
                     self.draw_pixel(x, y, cur_fillColor)
                 else:
                     self.draw_pixel(x, y, '#ffffff')
+            if update_flag == 1:
+                self.canv.update()
         d_time = time.time() - start_time
         messagebox.showinfo('Время', '{:.6f}'.format(d_time) + ' секунд')
+        self.line_coords = []
 
-    # def draw_pixels(self, pixels):
-    #     id_arr = []
-    #     for i in range(len(pixels)):
-    #         id_arr.append(self.draw_pixel(pixels[i][0], pixels[i][1]))
-    #     return id_arr
+    def draw_pixels(self, pixels):
+        global outLineColor
+        id_arr = []
+        for i in range(len(pixels)):
+            id_arr.append(self.draw_pixel(pixels[i][0], pixels[i][1], outLineColor))
+        return id_arr
 
     def draw_pixel(self, x, y, color):
         # global cur_fillColor
-        return self.canv.create_line(x, y, x + 1, y, fill=color)
+        self.bgImage.put(color, (int(x), int(y)))
+        # return self.canv.create_line(x, y, x + 1, y, fill=color)
     
     def entry_mode_x(self, event):
         if (self.ent_x.get() == 'X'):

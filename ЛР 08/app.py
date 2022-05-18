@@ -80,7 +80,7 @@ class App():
         style.configure('blue.TButton', background='#0000ff')
 
         self.root.geometry('1000x700+250+50')
-        self.root.title('Лабораторная работа №7')
+        self.root.title('Лабораторная работа №8')
         self.root.minsize(900, 630)
         self.root.grab_set()
         self.root.focus_get()
@@ -487,9 +487,8 @@ class App():
         self.last_action = []
     
     def prog_info(self):
-        messagebox.showinfo(title='О программе', message='Условие:\РЕАЛИЗАЦИЯ И ИЗУЧЕНИЕ АЛГОРИТМОВ ОТСЕЧЕНИЯ ОТРЕЗКА РЕГУЛЯРНЫМ ОТСЕКАТЕЛЕМ\n'
-                                                        '-----------------------------------------------------------\n'
-                                                        'Алгоритм разбиения средней точкой\n')
+        messagebox.showinfo(title='О программе', message='Условие:\РЕАЛИЗАЦИЯ И ИЗУЧЕНИЕ АЛГОРИТМОВ ОТСЕЧЕНИЯ Кируса-Бека\n'
+                                                        '-----------------------------------------------------------\n')
         
     def author_info(self):
         messagebox.showinfo(title='Об авторе', message='Мырзабеков Рамис Майрамбекович\n'

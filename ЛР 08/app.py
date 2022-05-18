@@ -161,7 +161,7 @@ class App():
         self.btn_setCutter.place(relwidth=0.92, relx=0.04, rely=0.37, relheight=0.04)
 
         self.canv.bind('<Button-3>', self.add_apexMuose)
-        self.canv.bind('<Button-2>', self.set_cutter)
+        self.canv.bind('<Button-2>', self.set_cutterMouse)
 
         self.ent_x.bind('<Button-1>', self.entry_mode_x)
         self.ent_y.bind('<Button-1>', self.entry_mode_y)
@@ -345,6 +345,9 @@ class App():
             self.cutter_edges_id.append(self.canv.create_line(xb, yb, xe, ye, fill=cutterColor))
             self.cutter_edge = []
             self.cutter_edge.append((xe, ye))
+
+    def set_cutterMouse(self, event):
+        self.set_cutter()
 
     def set_cutter(self):
         if len(self.cutter_coords_tmp) < 3:

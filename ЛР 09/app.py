@@ -4,7 +4,7 @@ from tkinter import ttk
 from tkinter import colorchooser
 from math import sqrt
 
-lineColor = '#00ff00'
+polygonColor = '#00ff00'
 cutterColor = '#000000'
 resultColor = '#0000ff'
 
@@ -121,13 +121,13 @@ class App():
         self.curCutterColor.configure(background=cutterColor)
         self.curCutterColor.place(relx=0.78, relwidth=0.18, rely=0.075, relheight=0.03)
 
-        self.curLineColor = ttk.Label(self.frame)
+        self.curPolygonColor = ttk.Label(self.frame)
 
-        self.btn_changeLineColor = ttk.Button(self.frame, text='Выбрать цвет отрезка', style='default.TButton', command=self.get_color_line)
-        self.btn_changeLineColor.place(relwidth=0.70, relx=0.04, rely=0.12, relheight=0.04)
+        self.btn_changePolygonColor = ttk.Button(self.frame, text='Выбрать цвет отрезка', style='default.TButton', command=self.get_color_polygon)
+        self.btn_changePolygonColor.place(relwidth=0.70, relx=0.04, rely=0.12, relheight=0.04)
 
-        self.curLineColor.configure(background=lineColor)
-        self.curLineColor.place(relx=0.78, relwidth=0.18, rely=0.125, relheight=0.03)
+        self.curPolygonColor.configure(background=polygonColor)
+        self.curPolygonColor.place(relx=0.78, relwidth=0.18, rely=0.125, relheight=0.03)
 
         self.curResultColor = ttk.Label(self.frame)
 
@@ -149,10 +149,11 @@ class App():
         self.ent_y.insert(0,'Y')
         self.ent_y.place(relwidth=0.425, relx=0.525, rely=0.27, relheight=0.04)
 
-        self.cutter_coords_tmp = []
-        self.cutter_coords = []
-        self.cutter_edge = []
+        self.cutter_apexes_tmp = []
         self.cutter_edges_id = []
+        self.cutter_apexes = []
+        self.cutter_edge = []
+        self.cutter_edges_amount = 0
 
         self.btn_addApex = ttk.Button(self.frame, text='Добавить вершину', style='default.TButton', command=self.add_apex)
         self.btn_addApex.place(relwidth=0.92, relx=0.04, rely=0.32, relheight=0.04)
@@ -178,15 +179,19 @@ class App():
         self.ent_yp.insert(0,'Y')
         self.ent_yp.place(relwidth=0.425, relx=0.525, rely=0.47, relheight=0.04)
 
+        self.polygon_apexes_tmp = []
+        self.polygon_edges_id = []
         self.polygon_apexes = []
+        self.polygon_edge = []
+        self.polygon_edges_amount = 0
 
-        self.btn_addApexP = ttk.Button(self.frame, text='Добавить вершину', style='default.TButton')#, command=self.add_apexp)
+        self.btn_addApexP = ttk.Button(self.frame, text='Добавить вершину', style='default.TButton', command=self.add_apexP)
         self.btn_addApexP.place(relwidth=0.92, relx=0.04, rely=0.52, relheight=0.04)
 
-        self.btn_setPolygon = ttk.Button(self.frame, text='Замкнуть', style='default.TButton')#, command=self.set_polygon)
+        self.btn_setPolygon = ttk.Button(self.frame, text='Замкнуть', style='default.TButton', command=self.set_polygon)
         self.btn_setPolygon.place(relwidth=0.92, relx=0.04, rely=0.57, relheight=0.04)
 
-        self.canv.bind('<Button-1>', self.add_pointMuose)
+        self.canv.bind('<Button-1>', self.add_apexPMuose)
 
         self.ent_xp.bind('<Button-1>', self.entry_mode_xp)
         self.ent_yp.bind('<Button-1>', self.entry_mode_yp)
@@ -220,15 +225,15 @@ class App():
         self.curCutterColor['background'] = hex_code
         cutterColor = hex_code
     
-    def get_color_line(self):
-        global lineColor
+    def get_color_polygon(self):
+        global polygonColor
         _, hex_code = colorchooser.askcolor(
             parent=self.root,
             title="Выберите цвет для закрашивания",
-            initialcolor=lineColor
+            initialcolor=polygonColor
         )
-        self.curLineColor['background'] = hex_code
-        lineColor = hex_code
+        self.curPolygonColor['background'] = hex_code
+        polygonColor = hex_code
     
     def get_color_result(self):
         global resultColor
@@ -242,67 +247,53 @@ class App():
 
     def clean(self):
         self.canv.delete(ALL)
-        self.cutter_edge = []
+        
+        self.polygon_apexes_tmp = []
+        self.polygon_edges_id = []
+        self.polygon_apexes = []
+        self.polygon_edge = []
+        self.polygon_edges_amount = 0
+        
+        self.cutter_apexes_tmp = []
         self.cutter_edges_id = []
-        self.cutter_coords = []
-        self.cutter_coords_tmp = []
-        self.all_lines = []
-        self.line_coords = []
+        self.cutter_apexes = []
+        self.cutter_edge = []
+        self.cutter_edges_amount = 0
+
         self.last_action = []
     
-    def add_pointMuose(self, event):
-        self.last_action = []
-        self.line_coords.append((event.x, event.y))
-        if len(self.line_coords) == 2:
-            xb, yb = self.line_coords[0]
-            xe, ye = self.line_coords[1]
-            xb, yb = int(xb), int(yb)
-            xe, ye = int(xe), int(ye)
-            self.canv.create_line(xb, yb, xe, ye, fill=lineColor)
-            self.all_lines.append(((xb, yb), (xe, ye)))
-            self.line_coords = []
-
-    def add_line(self):
-        xb = self.ent_xb.get()
-        yb = self.ent_yb.get()
-        xe = self.ent_xe.get()
-        ye = self.ent_ye.get()
-        try:
-            int(xb)
-            int(yb)
-            int(xe)
-            int(ye)
-        except ValueError:
-            messagebox.showerror(title='Ошибка!', message='Неверно введены данные')
-            self.ent_xb.delete(0, END)
-            self.ent_yb.delete(0, END)
-            self.ent_xe.delete(0, END)
-            self.ent_ye.delete(0, END)
-            self.ent_xb.insert(0, 'Xн')
-            self.ent_yb.insert(0, 'Yн')
-            self.ent_xe.insert(0, 'Xк')
-            self.ent_ye.insert(0, 'Yк')
-            self.ent_xe['fg'] = 'gray'
-            self.ent_ye['fg'] = 'gray'
-            self.ent_xb['fg'] = 'gray'
-            self.ent_yb['fg'] = 'gray'
-            return
-        xb = int(xb)
-        yb = int(yb)
-        xe = int(xe)
-        ye = int(ye)
-        self.last_action = []
-        self.canv.create_line(xb, yb, xe, ye, fill=lineColor)
-        self.all_lines.append(((xb, yb), (xe, ye)))
+    def add_apexPMuose(self, event):
+        if self.polygon_apexes != []:
+            for id in self.polygon_edges_id:
+                self.canv.delete(id)
+            self.polygon_apexes_tmp = []
+            self.polygon_edges_id = []
+            self.polygon_apexes = []
+            self.polygon_edge = []
+            self.polygon_edges_amount = 0
+        self.polygon_edge.append((event.x, event.y))
+        self.polygon_apexes_tmp.append((event.x, event.y))
+        if len(self.polygon_edge) == 2:
+            self.polygon_edges_amount += 1
+            xb, yb = self.polygon_edge[0]
+            xe, ye = self.polygon_edge[1]
+            self.polygon_edges_id.append(self.canv.create_line(xb, yb, xe, ye, fill=polygonColor))
+            self.polygon_edge = []
+            self.polygon_edge.append((xe, ye))
     
     def add_apexMuose(self, event):
-        if self.cutter_coords != []:
+        if self.cutter_apexes != []:
             for id in self.cutter_edges_id:
                 self.canv.delete(id)
-            self.cutter_coords = []
-        self.cutter_coords_tmp.append((event.x, event.y))
+            self.cutter_apexes_tmp = []
+            self.cutter_edges_id = []
+            self.cutter_apexes = []
+            self.cutter_edge = []
+            self.cutter_edges_amount = 0
         self.cutter_edge.append((event.x, event.y))
+        self.cutter_apexes_tmp.append((event.x, event.y))
         if len(self.cutter_edge) == 2:
+            self.cutter_edges_amount += 1
             xb, yb = self.cutter_edge[0]
             xe, ye = self.cutter_edge[1]
             self.cutter_edges_id.append(self.canv.create_line(xb, yb, xe, ye, fill=cutterColor))
@@ -326,44 +317,94 @@ class App():
             return
         x = int(x)
         y = int(y)
-        if self.cutter_coords != []:
+        if self.cutter_apexes != []:
             for id in self.cutter_edges_id:
                 self.canv.delete(id)
-            self.cutter_coords = []
-        self.cutter_coords_tmp.append((x, y))
+            self.cutter_apexes_tmp = []
+            self.cutter_edges_id = []
+            self.cutter_apexes = []
+            self.cutter_edge = []
+            self.cutter_edges_amount = 0
         self.cutter_edge.append((x, y))
+        self.cutter_apexes_tmp.append((x, y))
         if len(self.cutter_edge) == 2:
+            self.cutter_edges_amount += 1
             xb, yb = self.cutter_edge[0]
             xe, ye = self.cutter_edge[1]
             self.cutter_edges_id.append(self.canv.create_line(xb, yb, xe, ye, fill=cutterColor))
             self.cutter_edge = []
             self.cutter_edge.append((xe, ye))
+    
+    def add_apexP(self):
+        x = self.ent_xp.get()
+        y = self.ent_yp.get()
+        try:
+            int(x)
+            int(y)
+        except ValueError:
+            messagebox.showerror(title='Ошибка!', message='Неверно введены данные')
+            self.ent_xp.delete(0, END)
+            self.ent_yp.delete(0, END)
+            self.ent_xp.insert(0, 'X')
+            self.ent_yp.insert(0, 'Y')
+            self.ent_xp['fg'] = 'gray'
+            self.ent_yp['fg'] = 'gray'
+            return
+        x = int(x)
+        y = int(y)
+        if self.polygon_apexes != []:
+            for id in self.polygon_edges_id:
+                self.canv.delete(id)
+            self.polygon_apexes_tmp = []
+            self.polygon_edges_id = []
+            self.polygon_apexes = []
+            self.polygon_edge = []
+            self.polygon_edges_amount = 0
+        self.polygon_edge.append((x, y))
+        self.polygon_apexes_tmp.append((x, y))
+        if len(self.polygon_edge) == 2:
+            self.polygon_edges_amount += 1
+            xb, yb = self.polygon_edge[0]
+            xe, ye = self.polygon_edge[1]
+            self.polygon_edges_id.append(self.canv.create_line(xb, yb, xe, ye, fill=polygonColor))
+            self.polygon_edge = []
+            self.polygon_edge.append((xe, ye))
 
     def set_cutterMouse(self, event):
         self.set_cutter()
 
     def set_cutter(self):
-        if len(self.cutter_coords_tmp) < 3:
+        if len(self.cutter_apexes_tmp) < 3:
             messagebox.showerror(title='Ошибка!', message='У отсекателя количество вершин должно быть больше двух!')
             return
         
-        if not check_cutter(self.cutter_coords_tmp):
+        if not check_cutter(self.cutter_apexes_tmp):
             messagebox.showerror(title='Ошибка!', message='Отсекатель не выпуклый!')
-            self.cutter_coords_tmp = []
-            self.cutter_coords = []
+            self.cutter_apexes_tmp = []
+            self.cutter_apexes = []
             self.cutter_edge = []
             for id in self.cutter_edges_id:
                 self.canv.delete(id)
             return
         
-        self.cutter_coords = self.cutter_coords_tmp
-        self.cutter_coords_tmp = []
+        self.cutter_apexes = self.cutter_apexes_tmp
+        self.cutter_edges_id.append(self.canv.create_line(self.cutter_apexes[0][0], self.cutter_apexes[0][1], self.cutter_apexes[-1][0], self.cutter_apexes[-1][1], fill=cutterColor))
+        self.cutter_apexes.append(self.cutter_apexes_tmp[0])
+        self.cutter_apexes_tmp = []
         self.cutter_edge = []
-        self.cutter_edges_id.append(self.canv.create_line(self.cutter_coords[0][0], self.cutter_coords[0][1], self.cutter_coords[-1][0], self.cutter_coords[-1][1], fill=cutterColor))
     
+    def set_polygon(self):
+        if len(self.polygon_apexes_tmp) < 3:
+            messagebox.showerror(title='Ошибка!', message='У многоугольника количество вершин должно быть больше двух!')
+            return
+
+        self.polygon_apexes = self.polygon_apexes_tmp
+        self.polygon_edges_id.append(self.canv.create_line(self.polygon_apexes[0][0], self.polygon_apexes[0][1], self.polygon_apexes[-1][0], self.polygon_apexes[-1][1], fill=polygonColor))
+        self.polygon_apexes_tmp = []
+        self.polygon_edge = []
+
     def cut(self):
         normals = get_normals(self.cutter_coords)
-        # print(normals)
         for line in self.all_lines:
             self.cyrusbeck(line, normals)
     

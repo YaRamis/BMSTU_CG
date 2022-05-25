@@ -513,14 +513,14 @@ class App():
             self.res_edges_id.append(self.canv.create_line(p[i - 1][0], p[i - 1][1], p[i][0], p[i][1], fill=resultColor))
 
     def entry_mode_x(self, event):
-        if (self.ent_xlt.get() == 'X'):
-            self.ent_xlt.delete(0, END)
-            self.ent_xlt['foreground'] = '#000000'
+        if (self.ent_x.get() == 'X'):
+            self.ent_x.delete(0, END)
+            self.ent_x['foreground'] = '#000000'
 
     def entry_mode_y(self, event):
-        if (self.ent_ylt.get() == 'Y'):
-            self.ent_ylt.delete(0, END)
-            self.ent_ylt['foreground'] = '#000000'
+        if (self.ent_y.get() == 'Y'):
+            self.ent_y.delete(0, END)
+            self.ent_y['foreground'] = '#000000'
     
     def entry_mode_xp(self, event):
         if (self.ent_xp.get() == 'X'):
